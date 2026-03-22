@@ -1,0 +1,118 @@
+This is a classic OpenGL coordinate system gotcha 👍
+
+💥 Why it only shows bottom-left
+
+This line is the culprit:
+
+glOrtho(0, W, 0, H, -1, 1)
+
+👉 In OpenGL, this means:
+
+(0, 0) = BOTTOM-LEFT
+
+(W, H) = TOP-RIGHT
+
+But in pygame:
+
+(0, 0) = TOP-LEFT
+
+y increases downwards
+
+🔥 So what’s happening?
+
+When you do:
+
+glRasterPos2f(x, y)
+
+👉 you're placing text using bottom-left origin, not pygame's top-left.
+
+So your (200, 200) is actually:
+
+200 px right ✅
+
+200 px UP from bottom, not down from top ❌
+
+✅ Fix #1 (recommended): flip Y axis
+
+Change your projection to match pygame:
+
+glOrtho(0, W, H, 0, -1, 1)
+
+👉 Now:
+
+(0, 0) = TOP-LEFT
+
+(W, H) = BOTTOM-RIGHT
+
+✅ Fix #2: adjust manually
+
+If you keep your current projection, you must flip y:
+
+glRasterPos2f(x, H - y)
+⚠️ You also have a bug here
+
+Inside your class:
+
+glRasterPos2f(x, y)
+
+👉 x and y are undefined.
+
+You should use:
+
+x, y = self.location
+glRasterPos2f(x, y)
+✅ Final corrected function
+def draw_opengl(self, screen):
+    text_data = pygame.image.tostring(self.surface, "RGBA", True)
+    w, h = self.surface.get_size()
+    x, y = self.location
+
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    glOrtho(0, W, H, 0, -1, 1)  # 🔥 flipped Y
+
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+
+    glDisable(GL_DEPTH_TEST)
+    glUseProgram(0)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+    glRasterPos2f(x, y)
+    glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, text_data)
+
+    glDisable(GL_BLEND)
+    glEnable(GL_DEPTH_TEST)
+
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+    glPopMatrix()
+🚀 Bonus (important)
+
+glDrawPixels is:
+
+❌ very slow
+
+❌ deprecated in modern OpenGL
+
+👉 Later, you should switch to:
+
+textured quad (fast)
+
+or just pygame blit (simplest)
+
+✅ Summary
+
+OpenGL origin = bottom-left
+
+pygame origin = top-left
+
+Fix by flipping projection:
+
+glOrtho(0, W, H, 0, -1, 1)
+
+If you want, I can show you the modern way (textured quad text rendering) — much faster and cleaner.
